@@ -3,6 +3,7 @@ import {
   CompleteMultipartUploadCommand,
   CreateBucketCommand,
   CreateMultipartUploadCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
@@ -150,6 +151,17 @@ export class StorageService implements OnModuleInit {
       ContentLength: result.ContentLength,
       ContentType: result.ContentType,
     };
+  }
+
+  async deleteObject(storageKey: string): Promise<void> {
+    await this.ensureBucket();
+
+    await this.s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: this.storage.bucket,
+        Key: storageKey,
+      }),
+    );
   }
 
   async getObject(

@@ -173,6 +173,25 @@ describe('Video upload initiation (e2e)', () => {
     expect(await videoRepository.count()).toBe(0);
   });
 
+  it('accept-declared-size-at-exactly-10-gb', async () => {
+    const owner = await createChannelOwner();
+
+    const response = await request(app.getHttpServer())
+      .post(`/channels/${owner.channel.id}/videos/uploads`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({
+        original_filename: 'boundary.mp4',
+        title: 'Boundary video',
+        content_type: 'video/mp4',
+        size_bytes: 10_000_000_000,
+      })
+      .expect(201);
+
+    expect(
+      await videoRepository.findOneBy({ id: response.body.id }),
+    ).toMatchObject({ size_bytes: '10000000000' });
+  });
+
   it('sign-distinct-multipart-parts', async () => {
     const owner = await createChannelOwner();
     const createResponse = await request(app.getHttpServer())

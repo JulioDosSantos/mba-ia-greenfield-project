@@ -111,6 +111,7 @@ export class VideoUploadCleanupService
         if (!this.isMissingMultipartUpload(error)) {
           throw error;
         }
+        await this.storageService.deleteObject(video.storage_key);
       }
 
       return this.videosRepository.deleteDraft(

@@ -41,6 +41,11 @@ export type SignedVideoUploadParts = {
   parts: PresignedUploadPart[];
 };
 
+type CompleteUploadResult =
+  | { outcome: 'completed'; video: Video }
+  | { outcome: 'expired' }
+  | { outcome: 'oversized' };
+
 @Injectable()
 export class VideosService {
   constructor(
@@ -134,7 +139,7 @@ export class VideosService {
     this.assertValidCompletedParts(parts);
     await this.assertChannelOwner(channelId, userId);
 
-    const completedVideo = await this.dataSource.transaction(
+    const completion = await this.dataSource.transaction<CompleteUploadResult>(
       async (manager) => {
         const video = await this.videosRepository.findByIdInChannelForUpdate(
           manager,
@@ -151,22 +156,28 @@ export class VideosService {
               manager,
             );
           if (existingEvent) {
-            return video;
+            return { outcome: 'completed', video };
           }
           throw new VideoUploadNotDraftException();
         }
 
         if (this.isExpired(video.multipart_expires_at)) {
-          await this.abortActiveMultipartUpload(
+          const multipartWasMissing = await this.abortActiveMultipartUpload(
             video.storage_key,
             video.multipart_upload_id,
           );
-          await this.videosRepository.deleteDraft(
+          if (multipartWasMissing) {
+            await this.deleteCompletedObject(video.storage_key);
+          }
+          const deleted = await this.videosRepository.deleteDraft(
             manager,
             video.id,
             video.multipart_upload_id,
           );
-          throw new MultipartUploadExpiredException();
+          if (!deleted) {
+            throw new VideoUploadNotDraftException();
+          }
+          return { outcome: 'expired' };
         }
 
         const actualSizeBytes = await this.completeAndHeadMultipartUpload(
@@ -175,7 +186,16 @@ export class VideosService {
           parts,
         );
         if (actualSizeBytes > MAX_VIDEO_SIZE_BYTES) {
-          throw new VideoSizeLimitExceededException();
+          await this.deleteCompletedObject(video.storage_key);
+          const deleted = await this.videosRepository.deleteDraft(
+            manager,
+            video.id,
+            video.multipart_upload_id,
+          );
+          if (!deleted) {
+            throw new VideoUploadNotDraftException();
+          }
+          return { outcome: 'oversized' };
         }
 
         const finalized = await this.videosRepository.finalizeMultipartUpload(
@@ -191,7 +211,7 @@ export class VideosService {
               manager,
             );
           if (existingEvent) {
-            return video;
+            return { outcome: 'completed', video };
           }
           throw new VideoUploadNotDraftException();
         }
@@ -204,12 +224,19 @@ export class VideosService {
         video.multipart_upload_id = null;
         video.multipart_expires_at = null;
         video.size_bytes = actualSizeBytes.toString();
-        return video;
+        return { outcome: 'completed', video };
       },
     );
 
+    if (completion.outcome === 'expired') {
+      throw new MultipartUploadExpiredException();
+    }
+    if (completion.outcome === 'oversized') {
+      throw new VideoSizeLimitExceededException();
+    }
+
     await this.videoOutboxPublisher.publishPending();
-    return completedVideo;
+    return completion.video;
   }
 
   async cancelUpload(
@@ -232,10 +259,13 @@ export class VideosService {
         throw new VideoUploadNotDraftException();
       }
 
-      await this.abortActiveMultipartUpload(
+      const multipartWasMissing = await this.abortActiveMultipartUpload(
         video.storage_key,
         video.multipart_upload_id,
       );
+      if (multipartWasMissing) {
+        await this.deleteCompletedObject(video.storage_key);
+      }
       await this.videosRepository.deleteDraft(
         manager,
         video.id,
@@ -312,10 +342,13 @@ export class VideosService {
         return false;
       }
 
-      await this.abortActiveMultipartUpload(
+      const multipartWasMissing = await this.abortActiveMultipartUpload(
         video.storage_key,
         video.multipart_upload_id,
       );
+      if (multipartWasMissing) {
+        await this.deleteCompletedObject(video.storage_key);
+      }
       return this.videosRepository.deleteDraft(
         manager,
         video.id,
@@ -422,13 +455,23 @@ export class VideosService {
   private async abortActiveMultipartUpload(
     storageKey: string,
     uploadId: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       await this.storageService.abortMultipartUpload(storageKey, uploadId);
+      return false;
     } catch (error) {
-      if (!this.isMissingMultipartUpload(error)) {
-        throw new StorageUnavailableException();
+      if (this.isMissingMultipartUpload(error)) {
+        return true;
       }
+      throw new StorageUnavailableException();
+    }
+  }
+
+  private async deleteCompletedObject(storageKey: string): Promise<void> {
+    try {
+      await this.storageService.deleteObject(storageKey);
+    } catch {
+      throw new StorageUnavailableException();
     }
   }
 

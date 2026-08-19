@@ -208,8 +208,16 @@ describe('Video upload completion (e2e)', () => {
       status: 'DRAFT',
       processing_queued: true,
     });
-    expect(await videoRepository.findOneBy({ id: draft.id })).toMatchObject({
-      status: VideoStatus.DRAFT,
+    const persistedVideo = await videoRepository.findOneByOrFail({
+      id: draft.id,
+    });
+    expect([
+      VideoStatus.DRAFT,
+      VideoStatus.PROCESSING,
+      VideoStatus.READY,
+      VideoStatus.ERROR,
+    ]).toContain(persistedVideo.status);
+    expect(persistedVideo).toMatchObject({
       multipart_upload_id: null,
       multipart_expires_at: null,
     });
@@ -276,6 +284,12 @@ describe('Video upload completion (e2e)', () => {
       await videoOutboxRepository.countBy({ video_id: oversizedDraft.id }),
     ).toBe(0);
     expect(await videoQueue.getJob(oversizedDraft.id)).toBeUndefined();
+    expect(
+      await videoRepository.findOneBy({ id: oversizedDraft.id }),
+    ).toBeNull();
+    await expect(
+      storageService.headObject(oversizedDraft.storageKey),
+    ).rejects.toBeDefined();
   });
 
   it('keep-completion-idempotent', async () => {

@@ -84,4 +84,33 @@ describe('VideoOutboxPublisher', () => {
       'QUEUE_PUBLISH_FAILED',
     );
   });
+
+  it('retries an unpublished event periodically after the queue recovers', async () => {
+    jest.useFakeTimers();
+    const outbox = makeOutbox();
+    videoOutboxRepository.findUnpublished.mockResolvedValue([outbox]);
+    videoQueue.add
+      .mockRejectedValueOnce(new Error('Redis unavailable'))
+      .mockResolvedValue({ id: videoId });
+    videoOutboxRepository.markPublished.mockResolvedValue(true);
+
+    try {
+      await publisher.onApplicationBootstrap();
+      expect(videoOutboxRepository.recordPublishFailure).toHaveBeenCalledWith(
+        outbox.id,
+        'QUEUE_PUBLISH_FAILED',
+      );
+
+      await jest.advanceTimersByTimeAsync(10_000);
+
+      expect(videoQueue.add).toHaveBeenCalledTimes(2);
+      expect(videoOutboxRepository.markPublished).toHaveBeenCalledWith(
+        outbox.id,
+        expect.any(Date),
+      );
+    } finally {
+      await publisher.onApplicationShutdown();
+      jest.useRealTimers();
+    }
+  });
 });

@@ -4,6 +4,7 @@ import {
   ChannelAccessDeniedException,
   MultipartCompletionInvalidException,
   MultipartUploadExpiredException,
+  StorageUnavailableException,
   UnsupportedVideoMediaTypeException,
   VideoSizeLimitExceededException,
 } from '../common/exceptions/domain.exception';
@@ -86,6 +87,7 @@ describe('VideosService', () => {
       signUploadParts: jest.fn(),
       completeMultipartUpload: jest.fn(),
       abortMultipartUpload: jest.fn(),
+      deleteObject: jest.fn(),
       headObject: jest.fn(),
     } as unknown as jest.Mocked<StorageService>;
     storageKeyFactory = {
@@ -129,6 +131,30 @@ describe('VideosService', () => {
     ).rejects.toBeInstanceOf(VideoSizeLimitExceededException);
 
     expect(storageService.createMultipartUpload).not.toHaveBeenCalled();
+  });
+
+  it('accepts a declared video size at the exact 10 GB boundary', async () => {
+    const draft = makeVideo({ size_bytes: '10000000000' });
+    videosRepository.findChannelById.mockResolvedValue({
+      id: channelId,
+      user_id: ownerId,
+    } as never);
+    videosRepository.createDraft.mockResolvedValue(draft);
+    storageKeyFactory.createVideoSourceKey.mockReturnValue(draft.storage_key);
+    storageService.createMultipartUpload.mockResolvedValue({
+      uploadId: draft.multipart_upload_id!,
+    });
+
+    await expect(
+      service.startUpload(ownerId, channelId, {
+        title: 'Boundary size',
+        originalFilename: 'boundary.mp4',
+        contentType: 'video/mp4',
+        sizeBytes: 10_000_000_000,
+      }),
+    ).resolves.toBe(draft);
+
+    expect(storageService.createMultipartUpload).toHaveBeenCalled();
   });
 
   it('rejects a MIME type outside the configured allowlist before contacting storage', async () => {
@@ -272,6 +298,88 @@ describe('VideosService', () => {
       1,
     );
     expect(storageService.completeMultipartUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts the actual object size at the exact 10 GB boundary', async () => {
+    const activeVideo = makeVideo();
+    videosRepository.findChannelById.mockResolvedValue({
+      id: channelId,
+      user_id: ownerId,
+    } as never);
+    videosRepository.findByIdInChannelForUpdate.mockResolvedValue(activeVideo);
+    videosRepository.finalizeMultipartUpload.mockResolvedValue(true);
+    storageService.completeMultipartUpload.mockResolvedValue();
+    storageService.headObject.mockResolvedValue({
+      ContentLength: 10_000_000_000,
+      ContentType: 'video/mp4',
+    });
+    videoOutboxRepository.createProcessRequested.mockResolvedValue({} as never);
+
+    const result = await service.completeUpload(ownerId, channelId, videoId, [
+      { partNumber: 1, etag: 'etag-1' },
+    ]);
+
+    expect(result.size_bytes).toBe('10000000000');
+    expect(storageService.deleteObject).not.toHaveBeenCalled();
+    expect(videoOutboxPublisher.publishPending).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes an oversized completed object and its draft before returning the size error', async () => {
+    const activeVideo = makeVideo();
+    videosRepository.findChannelById.mockResolvedValue({
+      id: channelId,
+      user_id: ownerId,
+    } as never);
+    videosRepository.findByIdInChannelForUpdate.mockResolvedValue(activeVideo);
+    videosRepository.deleteDraft.mockResolvedValue(true);
+    storageService.completeMultipartUpload.mockResolvedValue();
+    storageService.headObject.mockResolvedValue({
+      ContentLength: 10_000_000_001,
+      ContentType: 'video/mp4',
+    });
+    storageService.deleteObject.mockResolvedValue();
+
+    await expect(
+      service.completeUpload(ownerId, channelId, videoId, [
+        { partNumber: 1, etag: 'etag-1' },
+      ]),
+    ).rejects.toBeInstanceOf(VideoSizeLimitExceededException);
+
+    expect(storageService.deleteObject).toHaveBeenCalledWith(
+      activeVideo.storage_key,
+    );
+    expect(videosRepository.deleteDraft).toHaveBeenCalledWith(
+      expect.anything(),
+      activeVideo.id,
+      activeVideo.multipart_upload_id,
+    );
+    expect(videoOutboxRepository.createProcessRequested).not.toHaveBeenCalled();
+    expect(videoOutboxPublisher.publishPending).not.toHaveBeenCalled();
+  });
+
+  it('keeps an oversized draft recoverable when object deletion is unavailable', async () => {
+    const activeVideo = makeVideo();
+    videosRepository.findChannelById.mockResolvedValue({
+      id: channelId,
+      user_id: ownerId,
+    } as never);
+    videosRepository.findByIdInChannelForUpdate.mockResolvedValue(activeVideo);
+    storageService.completeMultipartUpload.mockResolvedValue();
+    storageService.headObject.mockResolvedValue({
+      ContentLength: 10_000_000_001,
+      ContentType: 'video/mp4',
+    });
+    storageService.deleteObject.mockRejectedValue(
+      new Error('MinIO unavailable'),
+    );
+
+    await expect(
+      service.completeUpload(ownerId, channelId, videoId, [
+        { partNumber: 1, etag: 'etag-1' },
+      ]),
+    ).rejects.toBeInstanceOf(StorageUnavailableException);
+
+    expect(videosRepository.deleteDraft).not.toHaveBeenCalled();
   });
 
   it('aborts the active multipart session before deleting a draft on cancellation', async () => {

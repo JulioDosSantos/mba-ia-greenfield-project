@@ -113,4 +113,22 @@ describe('StorageService (integration)', () => {
       storageService.abortMultipartUpload(storageKey, uploadId),
     ).resolves.toBeUndefined();
   });
+
+  it('should delete a private object idempotently', async () => {
+    const storageKey = `videos/test-channel/${randomUUID()}/source`;
+    createdKeys.push(storageKey);
+    await storageService.putObject(
+      storageKey,
+      Buffer.from('delete me'),
+      'video/mp4',
+    );
+
+    await expect(
+      storageService.deleteObject(storageKey),
+    ).resolves.toBeUndefined();
+    await expect(
+      storageService.deleteObject(storageKey),
+    ).resolves.toBeUndefined();
+    await expect(storageService.headObject(storageKey)).rejects.toBeDefined();
+  });
 });

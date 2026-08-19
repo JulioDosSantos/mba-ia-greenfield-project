@@ -378,6 +378,10 @@ describe('Video pipeline (e2e)', () => {
 
     expect(await videoOutboxRepository.countBy({ video_id: draft.id })).toBe(0);
     expect(await videoQueue.getJob(draft.id)).toBeUndefined();
+    expect(await videoRepository.findOneBy({ id: draft.id })).toBeNull();
+    await expect(
+      storageService.headObject(draft.storage_key),
+    ).rejects.toBeDefined();
   });
 
   it('retry-invalid-media-and-ignore-duplicate-job', async () => {
