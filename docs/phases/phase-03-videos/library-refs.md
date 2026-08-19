@@ -50,7 +50,7 @@ The backend manifest uses NestJS `11.0.1` and the development container uses Nod
 **Context7:** `/aws/aws-sdk-js-v3`
 
 - Use `CreateMultipartUploadCommand`, `UploadPartCommand`, `CompleteMultipartUploadCommand`, and `AbortMultipartUploadCommand` for the persisted multipart lifecycle; completion uses the ordered `PartNumber`/`ETag` list.
-- Confirm the object after completion with `HeadObjectCommand` before accepting the `DRAFT` → `PROCESSING` transition and enforce the 10 GB (`10_000_000_000` bytes) limit against the resulting object.
+- Confirm the object after completion with `HeadObjectCommand`, enforce the 10 GB (`10_000_000_000` bytes) limit, and persist the durable outbox before the worker claims the later `DRAFT` → `PROCESSING` transition.
 - Use `GetObjectCommand` with the incoming HTTP `Range` for the owner-authorized proxy; forward its stream and response metadata without buffering the full file in API memory.
 
 ### @aws-sdk/s3-request-presigner

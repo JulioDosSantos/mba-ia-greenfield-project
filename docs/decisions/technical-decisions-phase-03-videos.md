@@ -64,7 +64,7 @@ _Subprojects in scope:_
 **Options:**
 
 ### Option A: API-orchestrated S3 multipart with per-part presigned URLs
-- A API cria o registro `DRAFT`, inicia o multipart no MinIO/S3 e devolve `uploadId`, chave interna e URLs pré-assinadas curtas para cada parte; a conclusão recebe somente números das partes e ETags.
+- A API cria o registro `DRAFT` e a sessão multipart no MinIO/S3, mantendo os identificadores internos apenas no servidor; o cliente recebe identificadores opacos do vídeo e, na rota de assinatura de partes, capacidades pré-assinadas curtas. A conclusão recebe somente números das partes e ETags.
 - A API confere usuário/canal, limite declarado, tipo aceito e estado antes de concluir; cancelar aborta o multipart.
 - **Pros:** os bytes não passam pela API, funciona com MinIO local e S3 em produção, permite retomada por parte e mantém a autorização no backend.
 - **Cons:** o contrato possui mais etapas e o cliente precisa guardar ETags e controlar expiração das URLs.
@@ -97,7 +97,7 @@ _Subprojects in scope:_
 
 ### Option A: One private media bucket with video-scoped prefixes
 - Um bucket privado, por exemplo `streamtube-media`, usa chaves internas como `videos/{channelId}/{videoId}/source` e `thumbnails/{channelId}/{videoId}/thumbnail.jpg`; nenhum nome original integra a chave.
-- Cancelamento e um job de limpeza abortam multiparts expirados de rascunhos; a falha definitiva remove objetos parciais antes de registrar o erro.
+- Cancelamento e um job de limpeza abortam multiparts expirados e removem seus rascunhos incompletos; o worker limpa os arquivos temporários locais, enquanto o original concluído permanece privado para auditoria e eventual reprocessamento.
 - **Pros:** uma política de acesso e um volume local, limpeza simples por prefixo e paridade direta entre MinIO e S3.
 - **Cons:** regras de lifecycle e métricas de vídeos e thumbnails compartilham o mesmo bucket.
 
@@ -113,7 +113,7 @@ _Subprojects in scope:_
 
 **Recommendation:** Option A — um bucket privado com prefixos opacos oferece a separação necessária e a menor superfície operacional para a primeira fase de mídia.
 
-**Decision:** A — one private `streamtube-media` bucket with channel/video-scoped prefixes, explicit multipart cancellation, expiry cleanup, and deletion of partial objects after terminal processing failure.
+**Decision:** A — one private media bucket with channel/video-scoped prefixes, explicit multipart cancellation, expiry cleanup, and local temporary-file cleanup by the worker.
 
 ---
 
@@ -128,10 +128,10 @@ _Subprojects in scope:_
 **Options:**
 
 ### Option A: Minimal persisted lifecycle with guarded transitions
-- O vídeo nasce `DRAFT`; a conclusão idempotente do multipart o move para `PROCESSING`; o worker o move para `READY` somente depois de persistir metadados e thumbnail, ou para `ERROR` após esgotar três tentativas exponenciais.
-- O `uploadId`, expiração e chave do objeto ficam no registro; `complete` condiciona a transição a `DRAFT`, e o worker não-opera para `READY` ou para um vídeo já tomado por outra entrega.
+- O vídeo nasce `DRAFT`; a conclusão idempotente finaliza o multipart, encerra a sessão ativa e grava uma outbox durável, ainda em `DRAFT`. O worker reivindica a transição atômica `DRAFT` → `PROCESSING`, move para `READY` somente depois de persistir metadados e thumbnail, ou para `ERROR` após esgotar três tentativas exponenciais.
+- A sessão, a expiração e a referência interna do objeto ficam apenas no registro enquanto o upload está ativo; `complete` exige esse `DRAFT` ativo, e o worker não-opera para `READY` ou `ERROR` e usa a reivindicação condicional para evitar processamento concorrente.
 - **Pros:** corresponde ao ciclo exigido, deixa o banco como fonte de verdade e torna conclusões/reentregas repetidas seguras sem expor estados internos de BullMQ.
-- **Cons:** `DRAFT` cobre tanto a pré-criação quanto o upload em andamento; detalhes operacionais precisam ficar em campos de sessão e logs.
+- **Cons:** `DRAFT` cobre a pré-criação, o upload em andamento e a espera pela fila; detalhes operacionais precisam ficar em campos de sessão e na outbox.
 
 ### Option B: Lifecycle detalhado com `UPLOADING` e `QUEUED`
 - O vídeo percorre `DRAFT` → `UPLOADING` → `QUEUED` → `PROCESSING` → `READY`/`ERROR`, com cada etapa persistida.
@@ -145,7 +145,7 @@ _Subprojects in scope:_
 
 **Recommendation:** Option A — quatro estados de negócio, transições condicionais e `jobId = videoId` conciliam simplicidade, recuperação e entrega ao menos uma vez.
 
-**Decision:** A — `DRAFT` → `PROCESSING` → `READY`/`ERROR`, with conditional database transitions, idempotent completion, and a terminal `ERROR` after the retry policy is exhausted.
+**Decision:** A — `DRAFT` (active or queued) → `PROCESSING` → `READY`/`ERROR`, with conditional database transitions, idempotent completion, and a terminal `ERROR` after the retry policy is exhausted.
 
 ---
 
@@ -161,7 +161,7 @@ _Subprojects in scope:_
 
 ### Option A: Database-unique opaque public ID with API range proxy
 - Um `public_id` aleatório, imutável e único no banco resolve a URL; a API busca a chave interna, confere que o vídeo está `READY` e que o solicitante é dono do canal, então encaminha o `Range` ao S3 e devolve `206`, `Content-Range`, `Accept-Ranges` e `Content-Length`.
-- Uma rota de download usa a mesma autorização e objeto, mas define `Content-Disposition: attachment`; streaming usa `inline`.
+- Uma rota de download usa a mesma autorização e objeto, mas define `Content-Disposition: attachment`; streaming não define `Content-Disposition`.
 - **Pros:** separa identificador público da chave S3, centraliza autorização e headers HTTP, e deixa a futura política de visibilidade ser adicionada sem expor o bucket.
 - **Cons:** o tráfego de reprodução passa pela API, que deverá transmitir o stream sem bufferizar o objeto.
 
@@ -192,8 +192,8 @@ _Subprojects in scope:_
 **Options:**
 
 ### Option A: Owner-only authorization through the channel relation
-- Cada operação recebe ou resolve `channelId`/`publicId`, carrega o canal e permite somente ao usuário autenticado cujo `channel.userId` corresponde ao recurso iniciar, consultar, concluir ou cancelar o upload; streaming e download de um vídeo `READY` seguem a mesma regra.
-- `401` representa ausência de autenticação, `403` propriedade inválida e `404` recurso inexistente ou que não pertence ao escopo autorizado, sem vazar a chave interna do storage.
+- Cada operação recebe ou resolve `channelId`/`publicId`, carrega o canal e permite somente ao usuário autenticado cujo `channel.userId` corresponde ao recurso iniciar, assinar partes, concluir ou cancelar o upload; streaming e download de um vídeo `READY` seguem a mesma regra.
+- `401` representa ausência de autenticação, `403` propriedade inválida e `404` recurso inexistente, sem vazar a referência interna do storage.
 - **Pros:** reutiliza o modelo de canal já entregue, bloqueia enumeração de mídia privada e deixa a futura visibilidade pública como decisão explícita da Fase 04.
 - **Cons:** o dono precisa estar autenticado também para reproduzir ou baixar seu próprio vídeo nesta fase.
 
@@ -224,8 +224,8 @@ _Subprojects in scope:_
 **Options:**
 
 ### Option A: API-owned session on the `DRAFT` video
-- `start` valida dono, tipo e `sizeBytes <= 10_000_000_000` (10 GB), cria ou reutiliza o vídeo `DRAFT`, persiste `uploadId`, expiração e chave opaca; URLs curtas são emitidas apenas para as partes solicitadas. `complete` recebe pares ordenados `partNumber`/`etag`, conclui o multipart, confere o tamanho real por `HeadObject` e faz a transição condicional para `PROCESSING`.
-- Repetir `complete` para a mesma sessão devolve o resultado já conhecido sem publicar outro processamento. `cancel` e a rotina de expiração abortam o multipart, removem a sessão e a chave parcial, mas preservam o rascunho para uma nova sessão.
+- `start` valida dono, tipo e `sizeBytes <= 10_000_000_000` (10 GB), cria o vídeo `DRAFT` e persiste a sessão, expiração e referência opaca somente no servidor; URLs curtas são emitidas apenas para as partes solicitadas. `complete` recebe pares ordenados `partNumber`/`etag`, conclui o multipart, confere o tamanho real por `HeadObject`, encerra a sessão e grava uma única outbox; o worker faz depois a transição condicional para `PROCESSING`.
+- Repetir `complete` para a mesma sessão devolve o resultado já conhecido sem publicar outro processamento. `cancel` e a rotina de expiração abortam o multipart e removem o rascunho incompleto.
 - **Pros:** mantém os bytes fora da API, limita 10 GB no plano de controle e dá um estado recuperável para cada ação.
 - **Cons:** o cliente precisa conservar ETags e solicitar novamente URLs expiradas.
 
@@ -257,7 +257,7 @@ _Subprojects in scope:_
 
 ### Option A: Binaries in the worker with a Node process adapter
 - A imagem `video-worker` instala `ffmpeg` e `ffprobe`; um adaptador baseado em `node:child_process` baixa o objeto para diretório temporário, usa `ffprobe` em JSON para duração/metadados e FFmpeg para gerar um JPEG, envia a thumbnail ao bucket privado e persiste somente dados normalizados e suas chaves.
-- O diretório temporário e thumbnails parciais são removidos em `finally`; falhas de processo são re-lançadas para a política de retry. O original completo é preservado no erro terminal para auditoria e futuro reprocessamento, coerente com TD-03 que remove apenas artefatos parciais.
+- O diretório temporário é removido em `finally`; falhas de processo são re-lançadas para a política de retry. O original completo é preservado no erro terminal para auditoria e futuro reprocessamento.
 - **Pros:** mantém FFmpeg fora da API, usa ferramentas nativas e evita uma dependência Node de binding de mídia sem manutenção.
 - **Cons:** a imagem do worker fica maior e testes de integração precisam de FFmpeg real.
 
@@ -288,7 +288,7 @@ _Subprojects in scope:_
 **Options:**
 
 ### Option A: Transactional outbox, minimal payload, and `jobId = videoId`
-- A conclusão persiste a transição `DRAFT` → `PROCESSING` e um outbox `video.processing.requested` na mesma transação. Um dispatcher dedicado publica `video.process` na fila BullMQ `video` com `{ version: 1, videoId }`, `jobId = videoId`, três tentativas e backoff exponencial; só então marca o outbox como entregue.
+- A conclusão finaliza o multipart e persiste um outbox `video.process` na mesma transação, mantendo o vídeo em `DRAFT` até que o worker o reivindique. Um dispatcher dedicado publica `video.process` na fila BullMQ `video` com `{ version: 1, videoId }`, `jobId = videoId`, três tentativas e backoff exponencial; só então marca o outbox como entregue.
 - O `video-worker` é o único consumidor, sempre recarrega o vídeo pelo ID e aplica transições condicionais. Reentregas de outbox ou queue são ignoradas pelo mesmo `jobId`; processamento de `READY`/`ERROR` é no-op e apenas a falha após a última tentativa muda o vídeo para `ERROR`.
 - **Pros:** elimina a janela em que o banco registra processamento sem uma intenção recuperável de publicar no Redis e mantém a mensagem pequena e versionável.
 - **Cons:** requer tabela e dispatcher de outbox, além do worker.

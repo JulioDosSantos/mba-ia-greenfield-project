@@ -342,7 +342,7 @@ Entregar storage privado para vídeos e thumbnails, fila e worker de processamen
 
 | Artifact | Layer | Test file |
 |----------|-------|-----------|
-| Video pipeline | Integration: PostgreSQL + MinIO + Redis + worker + FFmpeg/ffprobe reais | `nestjs-project/src/videos/video-pipeline.integration-spec.ts` |
+| Video pipeline | HTTP E2E: PostgreSQL + MinIO + Redis + worker + FFmpeg/ffprobe reais | `nestjs-project/test/video-pipeline.e2e-spec.ts` |
 
 **Dependencies:** SI-03.7 — rotas de conclusão; SI-03.8 — worker; SI-03.10 — entrega HTTP
 
@@ -362,7 +362,7 @@ Entregar storage privado para vídeos e thumbnails, fila e worker de processamen
 
 **Technical actions:**
 
-1. Atualizar `AGENTS.md` como o equivalente Codex do `CLAUDE.md` com módulo `videos`, endpoints, MinIO, Redis, worker, FFmpeg/ffprobe, estado privado e regras de hosts Compose.
+1. Atualizar `AGENTS.md` com o módulo `videos`, endpoints, MinIO, Redis, worker, FFmpeg/ffprobe, estado privado e regras de hosts Compose.
 2. Atualizar `nestjs-project/AGENTS.md` quando os comandos, serviços ou convenções de teste do backend passarem a incluir storage, fila e worker.
 3. Exportar/revisar `nestjs-project/openapi.json` e suas verificações para refletir todas as rotas, respostas parciais, autorização e envelope de erro de vídeos (per `openapi-docs-nestjs/TD-02`).
 4. Executar migrations e os gates documentados dentro de `nestjs-api`; revisar efeitos automáticos do lint e garantir que documentação cite somente caminhos e comportamentos implementados.
