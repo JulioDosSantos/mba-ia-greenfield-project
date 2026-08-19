@@ -105,7 +105,8 @@ Locate every SI block via `rg -n '^### SI-' "$PLAN"`. For each SI block:
    | Skip — não é screen/controller wiring | 0 | * | qualquer | * | n/a (skip silently) |
    | **Frontend Xb** | 1 | 0 | termina em `b` (ex: `SI-03.5b`) | * | `frontend` (Playwright) |
    | **Backend controller wiring** | 1 | 1 | plain `SI-NN.X` ou `SI-NN.X.Y` (sem letra) | * | `backend` |
-   | **Cross-layer** | 1 | 0 | plain `SI-NN.X` (sem letra, sem Route) | sim | emit AMBOS frontend + backend specs |
+   | **Cross-layer (dual-subproject)** | 1 | 0 | plain `SI-NN.X` (sem letra, sem Route) | sim; `affected_subprojects` contém frontend e backend | emit AMBOS frontend + backend specs |
+   | **Cross-layer (backend-only)** | 1 | 0 | plain `SI-NN.X` (sem letra, sem Route) | sim; `affected_subprojects` contém somente backend | emit somente a spec backend |
    | (impossível por construção) | 1 | 1 | termina em `b` | * | assert + abort |
    | **FALL-THROUGH** | 1 | 0 | plain `SI-NN.X` sem letra **OU** shape `SI-NN.X.0` (drift audit-SI) | não | abort com mensagem actionable (ver baixo) |
 
@@ -131,6 +132,7 @@ Locate every SI block via `rg -n '^### SI-' "$PLAN"`. For each SI block:
    - **Backend controller wiring (single subproject):**
      - `<subproject>` = the backend subproject directory; `<feature>` derives from the route's resource name (e.g., `POST /auth/register` → `auth-register`).
    - **Cross-layer (dual subproject):** emit BOTH `<frontend-subproject>/specs/<feature>.plan.md` and `<backend-subproject>/specs/<feature>.plan.md`.
+   - **Cross-layer (backend-only):** when `affected_subprojects` resolves to a backend and no frontend, emit only `<backend-subproject>/specs/<feature>.plan.md`. This is for cross-service backend flows (for example API + database + storage + queue + worker) in phases where the frontend is explicitly out of scope; do not create a frontend spec merely because the SI title includes `(cross-layer)`.
 
    **Resolving the role-to-directory mapping:** `affected_subprojects:` lists directory names but does NOT label which one plays the frontend/backend role. Discover the mapping in this order:
 
