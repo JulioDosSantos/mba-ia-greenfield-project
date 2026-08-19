@@ -4,6 +4,9 @@ RUN apt update && apt install -y procps curl
 
 WORKDIR /home/node/app
 
+RUN mkdir -p /home/node/app/node_modules \
+  && chown node:node /home/node/app/node_modules
+
 USER node
 
-CMD [ "tail", "-f", "/dev/null" ] 
+CMD [ "tail", "-f", "/dev/null" ]
