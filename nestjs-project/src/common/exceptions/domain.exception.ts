@@ -67,12 +67,44 @@ export class VideoNotFoundException extends DomainException {
   }
 }
 
+export class VideoAccessDeniedException extends DomainException {
+  constructor() {
+    super('VIDEO_ACCESS_DENIED', 403, 'Video access is denied');
+  }
+}
+
+export class VideoNotReadyException extends DomainException {
+  constructor() {
+    super('VIDEO_NOT_READY', 409, 'Video is not ready for delivery');
+  }
+}
+
+export class RangeNotSatisfiableException extends DomainException {
+  constructor() {
+    super(
+      'RANGE_NOT_SATISFIABLE',
+      416,
+      'Requested byte range is not satisfiable',
+    );
+  }
+}
+
 export class VideoSizeLimitExceededException extends DomainException {
   constructor() {
     super(
       'VIDEO_SIZE_LIMIT_EXCEEDED',
       413,
       'Video size exceeds the 10 GB limit',
+    );
+  }
+}
+
+export class UnsupportedVideoMediaTypeException extends DomainException {
+  constructor() {
+    super(
+      'UNSUPPORTED_VIDEO_MEDIA_TYPE',
+      415,
+      'Video media type is not supported',
     );
   }
 }

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateVideosAndVideoOutbox1787114326490
-  implements MigrationInterface
-{
+export class CreateVideosAndVideoOutbox1787114326490 implements MigrationInterface {
   name = 'CreateVideosAndVideoOutbox1787114326490';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

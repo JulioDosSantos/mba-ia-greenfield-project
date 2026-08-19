@@ -6,6 +6,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
   UploadPartCommand,
 } from '@aws-sdk/client-s3';
@@ -177,6 +178,23 @@ export class StorageService implements OnModuleInit {
     };
   }
 
+  async putObject(
+    storageKey: string,
+    body: Uint8Array,
+    contentType: string,
+  ): Promise<void> {
+    await this.ensureBucket();
+
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.storage.bucket,
+        Key: storageKey,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+  }
+
   private async ensureBucket(): Promise<void> {
     this.bucketInitialization ??= this.createBucketIfNeeded();
     await this.bucketInitialization;
@@ -206,7 +224,11 @@ export class StorageService implements OnModuleInit {
   }
 
   private hasHttpStatus(error: unknown, expectedStatus: number): boolean {
-    if (typeof error !== 'object' || error === null || !('$metadata' in error)) {
+    if (
+      typeof error !== 'object' ||
+      error === null ||
+      !('$metadata' in error)
+    ) {
       return false;
     }
 

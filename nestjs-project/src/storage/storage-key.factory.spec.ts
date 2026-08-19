@@ -8,9 +8,7 @@ describe('StorageKeyFactory', () => {
     const thumbnailKey = factory.createThumbnailKey('channel-123', 'video-456');
 
     expect(sourceKey).toBe('videos/channel-123/video-456/source');
-    expect(thumbnailKey).toBe(
-      'thumbnails/channel-123/video-456/thumbnail.jpg',
-    );
+    expect(thumbnailKey).toBe('thumbnails/channel-123/video-456/thumbnail.jpg');
     expect(sourceKey).not.toBe(thumbnailKey);
   });
 

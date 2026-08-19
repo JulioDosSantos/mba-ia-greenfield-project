@@ -55,7 +55,11 @@ describe('StorageService range access (integration)', () => {
       storageKey,
       'video/mp4',
     );
-    const [part] = await storageService.signUploadParts(storageKey, uploadId, [1]);
+    const [part] = await storageService.signUploadParts(
+      storageKey,
+      uploadId,
+      [1],
+    );
     const response = await fetch(part.url, {
       method: 'PUT',
       body: Uint8Array.from(source),

@@ -19,6 +19,11 @@ export type CreateVideoDraftValues = Pick<
   | 'multipart_expires_at'
 >;
 
+export type ReadyVideoValues = Pick<
+  Video,
+  'duration_seconds' | 'metadata' | 'thumbnail_key'
+>;
+
 @Injectable()
 export class VideosRepository {
   constructor(
@@ -49,6 +54,17 @@ export class VideosRepository {
     channelId: string,
   ): Promise<Video | null> {
     return this.videos.findOneBy({ id: videoId, channel_id: channelId });
+  }
+
+  async findById(videoId: string): Promise<Video | null> {
+    return this.videos.findOneBy({ id: videoId });
+  }
+
+  async findByPublicIdWithChannel(publicId: string): Promise<Video | null> {
+    return this.videos.findOne({
+      where: { public_id: publicId },
+      relations: { channel: true },
+    });
   }
 
   async findByIdInChannelForUpdate(
@@ -126,6 +142,43 @@ export class VideosRepository {
         multipart_upload_id: IsNull(),
       },
       { status: VideoStatus.PROCESSING },
+    );
+
+    return (result.affected ?? 0) === 1;
+  }
+
+  async incrementProcessingAttempts(videoId: string): Promise<void> {
+    await this.videos.increment(
+      { id: videoId, status: VideoStatus.PROCESSING },
+      'processing_attempts',
+      1,
+    );
+  }
+
+  async markReady(videoId: string, values: ReadyVideoValues): Promise<boolean> {
+    const result = await this.videos.update(
+      { id: videoId, status: VideoStatus.PROCESSING },
+      {
+        ...values,
+        metadata: values.metadata as never,
+        status: VideoStatus.READY,
+        error_code: null,
+      },
+    );
+
+    return (result.affected ?? 0) === 1;
+  }
+
+  async markProcessingError(
+    videoId: string,
+    errorCode: string,
+  ): Promise<boolean> {
+    const result = await this.videos.update(
+      { id: videoId, status: VideoStatus.PROCESSING },
+      {
+        status: VideoStatus.ERROR,
+        error_code: errorCode,
+      },
     );
 
     return (result.affected ?? 0) === 1;

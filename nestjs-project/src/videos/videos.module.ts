@@ -9,6 +9,9 @@ import { Video } from './entities/video.entity';
 import { VideoOutboxRepository } from './repositories/video-outbox.repository';
 import { VideosRepository } from './repositories/videos.repository';
 import { VideoOutboxPublisher } from './video-outbox.publisher';
+import { VideoDeliveryController } from './video-delivery.controller';
+import { VideoDeliveryService } from './video-delivery.service';
+import { VideosController } from './videos.controller';
 import { VideosService } from './videos.service';
 
 @Module({
@@ -17,11 +20,13 @@ import { VideosService } from './videos.service';
     QueueModule,
     StorageModule,
   ],
+  controllers: [VideosController, VideoDeliveryController],
   providers: [
     StorageKeyFactory,
     VideoOutboxRepository,
     VideoOutboxPublisher,
     VideosRepository,
+    VideoDeliveryService,
     VideosService,
   ],
   exports: [VideosService],

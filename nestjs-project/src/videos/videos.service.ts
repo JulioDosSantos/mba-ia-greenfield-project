@@ -12,6 +12,7 @@ import {
   VideoSizeLimitExceededException,
   VideoUploadNotDraftException,
   VideoUploadValidationException,
+  UnsupportedVideoMediaTypeException,
 } from '../common/exceptions/domain.exception';
 import storageConfig from '../config/storage.config';
 import {
@@ -59,6 +60,7 @@ export class VideosService {
     input: CreateVideoUploadInput,
   ): Promise<Video> {
     this.assertValidDeclaredSize(input.sizeBytes);
+    this.assertSupportedContentType(input.contentType);
     await this.assertChannelOwner(channelId, userId);
 
     const videoId = randomUUID();
@@ -119,6 +121,10 @@ export class VideosService {
     }
   }
 
+  getMultipartPartSizeBytes(): number {
+    return this.storage.multipartPartSizeBytes;
+  }
+
   async completeUpload(
     userId: string,
     channelId: string,
@@ -138,11 +144,7 @@ export class VideosService {
         if (!video) {
           throw new VideoNotFoundException();
         }
-        if (video.status !== VideoStatus.DRAFT) {
-          throw new VideoUploadNotDraftException();
-        }
-
-        if (!video.multipart_upload_id) {
+        if (video.status !== VideoStatus.DRAFT || !video.multipart_upload_id) {
           const existingEvent =
             await this.videoOutboxRepository.findProcessRequestedByVideoId(
               video.id,
@@ -331,6 +333,12 @@ export class VideosService {
     }
   }
 
+  private assertSupportedContentType(contentType: string): void {
+    if (!this.storage.allowedVideoMimeTypes.includes(contentType)) {
+      throw new UnsupportedVideoMediaTypeException();
+    }
+  }
+
   private assertValidPartNumbers(partNumbers: readonly number[]): void {
     if (
       partNumbers.length === 0 ||
@@ -356,7 +364,7 @@ export class VideosService {
           (index > 0 && part.partNumber <= parts[index - 1].partNumber),
       )
     ) {
-      throw new VideoUploadValidationException();
+      throw new MultipartCompletionInvalidException();
     }
   }
 

@@ -6,7 +6,9 @@ import { DataSource, Repository } from 'typeorm';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { VerificationToken } from '../auth/entities/verification-token.entity';
 import { Channel } from '../channels/entities/channel.entity';
-import storageConfig from '../config/storage.config';
+import storageConfig, {
+  DEFAULT_MULTIPART_PART_SIZE_BYTES,
+} from '../config/storage.config';
 import { StorageModule } from '../storage/storage.module';
 import { StorageKeyFactory } from '../storage/storage-key.factory';
 import { StorageService } from '../storage/storage.service';
@@ -30,7 +32,7 @@ const ALL_ENTITIES = [
   Video,
   VideoOutbox,
 ];
-const PART_SIZE_BYTES = 5 * 1024 * 1024;
+const PART_SIZE_BYTES = DEFAULT_MULTIPART_PART_SIZE_BYTES;
 const STORAGE_BUCKET = 'streamtube-media';
 
 async function uploadPart(url: string, body: Buffer): Promise<string> {
@@ -142,6 +144,8 @@ describe('VideosService (integration)', () => {
 
   it('persists an owner-scoped draft, signs its multipart session, and cancels it', async () => {
     const { channel, user } = await createOwnedChannel();
+    expect(videosService.getMultipartPartSizeBytes()).toBe(PART_SIZE_BYTES);
+
     const draft = await videosService.startUpload(user.id, channel.id, {
       title: 'Draft upload',
       originalFilename: 'draft.mp4',

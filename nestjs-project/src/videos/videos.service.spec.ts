@@ -2,7 +2,9 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import {
   ChannelAccessDeniedException,
+  MultipartCompletionInvalidException,
   MultipartUploadExpiredException,
+  UnsupportedVideoMediaTypeException,
   VideoSizeLimitExceededException,
 } from '../common/exceptions/domain.exception';
 import storageConfig from '../config/storage.config';
@@ -12,6 +14,7 @@ import { Video } from './entities/video.entity';
 import { VideoOutboxRepository } from './repositories/video-outbox.repository';
 import { VideosRepository } from './repositories/videos.repository';
 import { VideoOutboxPublisher } from './video-outbox.publisher';
+import { VideoStatus } from './video-status.enum';
 import { VideosService } from './videos.service';
 
 const ownerId = 'user-id';
@@ -100,7 +103,11 @@ describe('VideosService', () => {
         { provide: StorageKeyFactory, useValue: storageKeyFactory },
         {
           provide: storageConfig.KEY,
-          useValue: { multipartUrlExpirationSeconds: 900 },
+          useValue: {
+            allowedVideoMimeTypes: ['video/mp4'],
+            multipartPartSizeBytes: 5_242_880,
+            multipartUrlExpirationSeconds: 900,
+          },
         },
       ],
     }).compile();
@@ -122,6 +129,23 @@ describe('VideosService', () => {
     ).rejects.toBeInstanceOf(VideoSizeLimitExceededException);
 
     expect(storageService.createMultipartUpload).not.toHaveBeenCalled();
+  });
+
+  it('rejects a MIME type outside the configured allowlist before contacting storage', async () => {
+    await expect(
+      service.startUpload(ownerId, channelId, {
+        title: 'Unsupported media',
+        originalFilename: 'unsupported.avi',
+        contentType: 'video/x-msvideo',
+        sizeBytes: 1024,
+      }),
+    ).rejects.toBeInstanceOf(UnsupportedVideoMediaTypeException);
+
+    expect(storageService.createMultipartUpload).not.toHaveBeenCalled();
+  });
+
+  it('returns the configured multipart part size for upload clients', () => {
+    expect(service.getMultipartPartSizeBytes()).toBe(5_242_880);
   });
 
   it('does not sign parts for a caller who does not own the channel', async () => {
@@ -190,9 +214,21 @@ describe('VideosService', () => {
     );
   });
 
+  it('rejects an out-of-order completion list before contacting storage', async () => {
+    await expect(
+      service.completeUpload(ownerId, channelId, videoId, [
+        { partNumber: 2, etag: 'etag-2' },
+        { partNumber: 1, etag: 'etag-1' },
+      ]),
+    ).rejects.toBeInstanceOf(MultipartCompletionInvalidException);
+
+    expect(storageService.completeMultipartUpload).not.toHaveBeenCalled();
+  });
+
   it('writes one outbox event after completion and returns the saved result on a duplicate request', async () => {
     const activeVideo = makeVideo();
     const completedVideo = makeVideo({
+      status: VideoStatus.PROCESSING,
       multipart_upload_id: null,
       multipart_expires_at: null,
     });
