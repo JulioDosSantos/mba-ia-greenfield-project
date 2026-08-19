@@ -3,6 +3,8 @@ import {
   type DataSourceOptions,
   MigrationInterface,
 } from 'typeorm';
+import { VideoOutbox } from '../videos/entities/video-outbox.entity';
+import { Video } from '../videos/entities/video.entity';
 
 interface TestDataSourceOptions {
   synchronize?: boolean;
@@ -14,6 +16,10 @@ export function createTestDataSource(
   options: TestDataSourceOptions = {},
 ): DataSource {
   const { synchronize = true, migrations } = options;
+  const testEntities = Array.isArray(entities)
+    ? entities
+    : Object.values(entities);
+
   return new DataSource({
     type: 'postgres',
     host: process.env.DB_HOST ?? 'db',
@@ -21,13 +27,15 @@ export function createTestDataSource(
     username: process.env.DB_USERNAME ?? 'streamtube',
     password: process.env.DB_PASSWORD ?? 'streamtube',
     database: process.env.DB_DATABASE ?? 'streamtube',
-    entities,
+    entities: [...new Set([...testEntities, Video, VideoOutbox])],
     synchronize,
     ...(migrations !== undefined && { migrations, migrationsRun: false }),
   });
 }
 
 export async function cleanAllTables(dataSource: DataSource): Promise<void> {
+  await dataSource.query('DELETE FROM "video_outbox"');
+  await dataSource.query('DELETE FROM "videos"');
   await dataSource.query('DELETE FROM "refresh_tokens"');
   await dataSource.query('DELETE FROM "verification_tokens"');
   await dataSource.query('DELETE FROM "channels"');
