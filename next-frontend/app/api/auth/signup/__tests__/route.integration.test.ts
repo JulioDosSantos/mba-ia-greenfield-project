@@ -53,4 +53,20 @@ describe("POST /api/auth/signup", () => {
     const res = await POST(makeRequest({ email: "x@y.z", password: "pw" }));
     expect(res.status).toBe(422);
   });
+
+  it("returns a structured 503 when the upstream is unavailable", async () => {
+    server.use(
+      http.post(`${env.API_URL}/auth/register`, () => HttpResponse.error()),
+    );
+
+    const res = await POST(
+      makeRequest({ email: "alice@example.com", password: "pw" }),
+    );
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toMatchObject({
+      statusCode: 503,
+      error: "UPSTREAM_UNAVAILABLE",
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures"
 
 // 1 spec → 1 file with one describe (feature = target_file stem) + N test() blocks.
-// Upstream is faked server-side by mocks/ MSW via instrumentation.ts. The
+// Upstream is served by the isolated HTTP fixture. The
 // /auth/forgot-password handler returns 204 for any email (anti-enumeration)
 // and 400 for the reserved trigger badrequest@example.com. No page.route().
 test.describe("auth-forgot-password", () => {

@@ -40,4 +40,20 @@ describe("POST /api/auth/forgot-password", () => {
     const body = await res.json();
     expect(body).toMatchObject({ statusCode: 400, error: "VALIDATION_FAILED" });
   });
+
+  it("returns a structured 503 when the upstream is unavailable", async () => {
+    server.use(
+      http.post(`${env.API_URL}/auth/forgot-password`, () =>
+        HttpResponse.error(),
+      ),
+    );
+
+    const res = await POST(makeRequest({ email: "alice@example.com" }));
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toMatchObject({
+      statusCode: 503,
+      error: "UPSTREAM_UNAVAILABLE",
+    });
+  });
 });
