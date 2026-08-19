@@ -7,13 +7,20 @@ const PG_UNIQUE_VIOLATION = '23505';
 const NICKNAME_COLUMN = 'nickname';
 const MAX_RETRIES = 5;
 
+type PostgresErrorDetails = {
+  code?: unknown;
+  detail?: unknown;
+};
+
 function isPgUniqueViolationOnColumn(err: unknown, column: string): boolean {
   if (!(err instanceof QueryFailedError)) return false;
-  const e = err as any;
+
+  const postgresError = err as QueryFailedError & PostgresErrorDetails;
+
   return (
-    e.code === PG_UNIQUE_VIOLATION &&
-    typeof e.detail === 'string' &&
-    e.detail.includes(column)
+    postgresError.code === PG_UNIQUE_VIOLATION &&
+    typeof postgresError.detail === 'string' &&
+    postgresError.detail.includes(column)
   );
 }
 

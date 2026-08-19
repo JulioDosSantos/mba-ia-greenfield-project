@@ -54,4 +54,16 @@ describe("POST /api/auth/logout", () => {
     const session = await getSession();
     expect(session.isLoggedIn).toBeFalsy();
   });
+
+  it("returns 204 and still destroys session when the upstream is unavailable", async () => {
+    server.use(
+      http.post(`${env.API_URL}/auth/logout`, () => HttpResponse.error()),
+    );
+
+    const res = await POST();
+
+    expect(res.status).toBe(204);
+    const session = await getSession();
+    expect(session.isLoggedIn).toBeFalsy();
+  });
 });

@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures"
 
 // 1 spec → 1 file with one describe (feature = target_file stem) + N test() blocks.
-// Upstream is faked server-side by mocks/ MSW via instrumentation.ts; per-scenario
+// Upstream is served by the isolated HTTP fixture; per-scenario
 // outcomes use the reserved trigger emails (conflict@ → 409, badrequest@ → 400).
 // No page.route() of /api/** — that would short-circuit the real Route Handlers.
 test.describe("auth-signup", () => {

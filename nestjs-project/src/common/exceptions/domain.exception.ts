@@ -48,3 +48,105 @@ export class TokenReuseDetectedException extends DomainException {
     );
   }
 }
+
+export class ChannelNotFoundException extends DomainException {
+  constructor() {
+    super('CHANNEL_NOT_FOUND', 404, 'Channel was not found');
+  }
+}
+
+export class ChannelAccessDeniedException extends DomainException {
+  constructor() {
+    super('CHANNEL_ACCESS_DENIED', 403, 'Channel access is denied');
+  }
+}
+
+export class VideoNotFoundException extends DomainException {
+  constructor() {
+    super('VIDEO_NOT_FOUND', 404, 'Video was not found');
+  }
+}
+
+export class VideoAccessDeniedException extends DomainException {
+  constructor() {
+    super('VIDEO_ACCESS_DENIED', 403, 'Video access is denied');
+  }
+}
+
+export class VideoNotReadyException extends DomainException {
+  constructor() {
+    super('VIDEO_NOT_READY', 409, 'Video is not ready for delivery');
+  }
+}
+
+export class RangeNotSatisfiableException extends DomainException {
+  constructor() {
+    super(
+      'RANGE_NOT_SATISFIABLE',
+      416,
+      'Requested byte range is not satisfiable',
+    );
+  }
+}
+
+export class VideoSizeLimitExceededException extends DomainException {
+  constructor() {
+    super(
+      'VIDEO_SIZE_LIMIT_EXCEEDED',
+      413,
+      'Video size exceeds the 10 GB limit',
+    );
+  }
+}
+
+export class UnsupportedVideoMediaTypeException extends DomainException {
+  constructor() {
+    super(
+      'UNSUPPORTED_VIDEO_MEDIA_TYPE',
+      415,
+      'Video media type is not supported',
+    );
+  }
+}
+
+export class VideoUploadNotDraftException extends DomainException {
+  constructor() {
+    super(
+      'VIDEO_UPLOAD_NOT_DRAFT',
+      409,
+      'Video upload is no longer accepting multipart operations',
+    );
+  }
+}
+
+export class MultipartUploadExpiredException extends DomainException {
+  constructor() {
+    super(
+      'MULTIPART_UPLOAD_EXPIRED',
+      410,
+      'Multipart upload session has expired',
+    );
+  }
+}
+
+export class MultipartCompletionInvalidException extends DomainException {
+  constructor() {
+    super(
+      'MULTIPART_COMPLETION_INVALID',
+      422,
+      'Multipart upload completion is invalid',
+    );
+  }
+}
+
+export class VideoUploadValidationException extends DomainException {
+  constructor() {
+    super('VALIDATION_ERROR', 400, 'Video upload input is invalid');
+  }
+}
+
+export class StorageUnavailableException extends DomainException {
+  constructor() {
+    super('STORAGE_UNAVAILABLE', 503, 'Storage is temporarily unavailable');
+  }
+}

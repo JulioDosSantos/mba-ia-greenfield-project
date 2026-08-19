@@ -37,6 +37,10 @@ Contém os fundamentos visuais do StreamTube — tokens (cores, tipografia, espa
 - Node.js v25+ (para rodar os testes E2E do Playwright no host)
 - npm
 
+## Agentes de desenvolvimento
+
+O repositório mantém fundações versionadas para os agentes suportados. Para usar o Codex, abra a sessão nesta raiz Git, marque o projeto como confiável e siga [docs/codex-setup.md](docs/codex-setup.md). O guia cobre descoberta de instruções, skills, leitores especializados, MCPs e o pipeline de planejamento/implementação.
+
 ## 🏗️ Arquitetura
 
 O projeto é um monorepo baseado em containers Docker. Cada subprojeto sobe sua própria stack via `docker compose`.
@@ -183,7 +187,10 @@ green-field-ia-project/
 │   ├── tests/                           # E2E (Playwright)
 │   ├── compose.yaml                     # Docker Compose (dev server)
 │   └── Dockerfile.dev
-├── CLAUDE.md                            # Instruções para IA
+├── .agents/                            # Skills locais do Codex
+├── .codex/                             # Configuração, MCPs e agentes Codex
+├── AGENTS.md                           # Instruções Codex da raiz
+├── CLAUDE.md                           # Instruções para IA
 ├── FC Tube.fig                          # Design system do projeto (Figma)
 ├── whiteboard.png                       # Quadro branco do projeto
 └── README.md

@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// The dev server runs inside Docker (containerized next dev with MSW_ENABLED=true).
+// The dev server and its isolated upstream fixture run inside Docker.
 // Playwright runs on the HOST — never add a webServer block here.
-// Start the server manually: docker compose exec -d next-frontend sh -c "MSW_ENABLED=true npm run dev"
+// Start it with: docker compose exec -d next-frontend npm run dev:e2e
 export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.e2e-spec.ts",
