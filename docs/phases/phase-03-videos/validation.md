@@ -4,8 +4,8 @@ name: phase-03-videos
 status: clean
 issue_count: 0
 sources_mtime:
-  docs/phases/phase-03-videos/context.md: "2026-08-19T03:50:38.8254040Z"
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-08-19T03:50:05.0286683Z"
+  docs/phases/phase-03-videos/context.md: "2026-08-19T15:51:49.2323157Z"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-08-19T14:04:22.4148700Z"
 issues:
   - id: OQ-1
     status: resolved
@@ -68,6 +68,7 @@ _None._
 - TD-07 fixes direct multipart start, completion, cancellation, expiry, and the 10 GB (`10_000_000_000` bytes) server-side size check.
 - TD-08 fixes the FFmpeg/ffprobe contract; TD-09 fixes the durable queue event, retry, and idempotency boundary.
 - TD-10 pins the Nest BullMQ, BullMQ, and AWS SDK v3 packages documented through Context7; `library-refs.md` contains the matching usage references.
+- The final audit verifies the exact 10 GB inclusive boundary, compensating deletion for oversized completed objects, periodic outbox recovery after Redis failures, and zero known npm vulnerabilities in both subprojects.
 
 ## Resolved Issues
 

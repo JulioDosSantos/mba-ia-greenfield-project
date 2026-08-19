@@ -5,14 +5,14 @@ test_specs_aware: true
 affected_subprojects: [nestjs-project]
 sources_mtime:
   docs/project-plan.md: "2026-08-16T22:22:22.9389174Z"
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-08-19T03:50:05.0286683Z"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-08-19T14:04:22.4148700Z"
   docs/decisions/technical-decisions-openapi-docs-nestjs.md: "2026-08-18T02:12:15.6601140Z"
   docs/phases/phase-01-configuracao-base/context.md: "2026-08-18T02:12:15.6723949Z"
   docs/phases/phase-02-auth/context.md: "2026-08-18T02:12:15.7018888Z"
   docs/phases/phase-02-auth-frontend/context.md: "2026-08-18T02:12:15.6775640Z"
   .agents/skills/testing-guide-nestjs-project/SKILL.md: "2026-08-18T04:02:58.9223570Z"
-  docs/phases/phase-03-videos/library-refs.md: "2026-08-19T03:50:26.7438095Z"
-  docs/phases/phase-03-videos/context.md: "2026-08-19T03:50:38.8254040Z"
+  docs/phases/phase-03-videos/library-refs.md: "2026-08-19T15:51:40.3442074Z"
+  docs/phases/phase-03-videos/context.md: "2026-08-19T15:51:49.2323157Z"
 ---
 
 # Fase 03 — Upload e Processamento de Vídeos
@@ -667,24 +667,24 @@ SI-03.1 (root — infraestrutura e configuração)
 
 ## Deliverables
 
-- [ ] SI-03.1 — Provisionar infraestrutura de storage e fila
-- [ ] SI-03.2 — Persistir vídeos e outbox de processamento
-- [ ] SI-03.3 — Integrar storage multipart privado
-- [ ] SI-03.4 — Implementar ciclo de vida do upload
-- [ ] SI-03.5 — Publicar eventos duráveis de processamento
-- [ ] SI-03.6 — Expor início e assinatura de upload
-- [ ] SI-03.7 — Expor conclusão e cancelamento de upload
-- [ ] SI-03.8 — Executar worker de processamento de mídia
-- [ ] SI-03.9 — Implementar entrega privada por range e download
-- [ ] SI-03.10 — Expor streaming e download autenticados
-- [ ] SI-03.11 — Fluxo funcional de vídeos (cross-layer)
-- [ ] SI-03.12 — Consolidar documentação e verificação final
+- [x] SI-03.1 — Provisionar infraestrutura de storage e fila
+- [x] SI-03.2 — Persistir vídeos e outbox de processamento
+- [x] SI-03.3 — Integrar storage multipart privado
+- [x] SI-03.4 — Implementar ciclo de vida do upload
+- [x] SI-03.5 — Publicar eventos duráveis de processamento
+- [x] SI-03.6 — Expor início e assinatura de upload
+- [x] SI-03.7 — Expor conclusão e cancelamento de upload
+- [x] SI-03.8 — Executar worker de processamento de mídia
+- [x] SI-03.9 — Implementar entrega privada por range e download
+- [x] SI-03.10 — Expor streaming e download autenticados
+- [x] SI-03.11 — Fluxo funcional de vídeos (cross-layer)
+- [x] SI-03.12 — Consolidar documentação e verificação final
 
 **Full test suites:**
 
-- [ ] Backend unit tests pass (`cd nestjs-project && docker compose exec nestjs-api npm test -- --runInBand`)
-- [ ] Backend integration tests pass (`cd nestjs-project && docker compose exec nestjs-api npm run test:integration`)
-- [ ] E2E tests pass (`cd nestjs-project && docker compose exec nestjs-api npm run test:e2e`)
-- [ ] Type checks pass (`cd nestjs-project && docker compose exec nestjs-api npx tsc --noEmit`)
-- [ ] Lint passes (`cd nestjs-project && docker compose exec nestjs-api npm run lint`)
-- [ ] Project builds successfully (`cd nestjs-project && docker compose exec nestjs-api npm run build`)
+- [x] Backend unit tests pass (`cd nestjs-project && docker compose exec nestjs-api npm test -- --runInBand`)
+- [x] Backend integration tests pass (`cd nestjs-project && docker compose exec nestjs-api npm run test:integration`)
+- [x] E2E tests pass (`cd nestjs-project && docker compose exec nestjs-api npm run test:e2e`)
+- [x] Type checks pass (`cd nestjs-project && docker compose exec nestjs-api npx tsc --noEmit`)
+- [x] Lint passes (`cd nestjs-project && docker compose exec nestjs-api npm run lint`)
+- [x] Project builds successfully (`cd nestjs-project && docker compose exec nestjs-api npm run build`)

@@ -73,7 +73,8 @@
 
 ### SI-03.12 — Consolidar documentação e verificação final
 - **Status:** completed
-- **Tests:** OpenAPI export (11), unit (41 suites / 203 tests), integration (20 suites / 105 tests), HTTP E2E (6 suites / 64 tests), and pipeline E2E (5 tests) passing; migrations, `npx tsc --noEmit`, lint, build, and `git diff --check` passed
+- **Tests:** final backend audit: unit and integration aggregate (42 suites / 210 tests), dedicated integration (20 suites / 106 tests), and HTTP/pipeline E2E (7 suites / 70 tests) passing; migrations, `npx tsc --noEmit`, lint, build, `npm audit`, and `git diff --check` passed
 - **Observations:**
   - `AGENTS.md`, backend instructions, and the generated OpenAPI now describe only the implemented private multipart, worker, and delivery architecture.
   - The normal HTTP E2E suite runs with the competing worker stopped where its queue assertions require it; the worker is restored and the real pipeline E2E runs with it active.
+  - Exact 10 GB boundary coverage, oversized-object compensation, and periodic outbox recovery are verified; the backend and frontend dependency audits report zero known vulnerabilities.

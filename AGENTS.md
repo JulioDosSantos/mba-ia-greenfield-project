@@ -3,22 +3,24 @@
 ## Session entry point
 
 - Open Codex at this Git root, not from its parent directory, and mark the project as trusted so project configuration, skills, agents, and MCP servers can load.
-- Read the instruction file closest to the files being changed. Work under`nestjs-project/` also uses`nestjs-project/AGENTS.md`; work under`next-frontend/` also uses`next-frontend/AGENTS.md`.
+- Read the instruction file closest to the files being changed. Work under `nestjs-project/` also uses `nestjs-project/AGENTS.md`; work under `next-frontend/` also uses `next-frontend/AGENTS.md`.
+- `AGENTS.md` is the canonical AI instruction source. Each `CLAUDE.md` mirrors the `AGENTS.md` in the same directory verbatim and must not introduce independent rules.
 - Preserve historical planning artifacts. New planning artifacts use the workflows and paths under `.agents/`.
 
 ## Project
 
 StreamTube is a video-sharing monorepo. Implemented areas are a NestJS 11 backend and a Next.js 16 frontend. Authentication and the Phase 03 video lifecycle are delivered: private multipart uploads, asynchronous media processing, and private delivery.
 
--`nestjs-project/`: NestJS API, PostgreSQL, Mailpit, Jest, TypeORM, private MinIO-compatible object storage, Redis/BullMQ, and a separate FFmpeg/ffprobe video worker.
--`next-frontend/`: Next.js App Router BFF, React 19, Tailwind CSS v4, Vitest, MSW, and Playwright.
+- `nestjs-project/`: NestJS API, PostgreSQL, Mailpit, Jest, TypeORM, private MinIO-compatible object storage, Redis/BullMQ, and a separate FFmpeg/ffprobe video worker.
+- `next-frontend/`: Next.js App Router BFF, React 19, Tailwind CSS v4, Vitest, MSW, and Playwright.
 - `docs/`: project plan, decisions, phase/task plans, inventories, and diagrams.
 
 ## Implemented video pipeline
 
 - `VideosModule` owns authenticated video HTTP APIs. The upload lifecycle is `POST /channels/:channelId/videos/uploads`, `POST /channels/:channelId/videos/:videoId/upload-parts`, `POST /channels/:channelId/videos/:videoId/complete-upload`, and `DELETE /channels/:channelId/videos/:videoId/upload`; private delivery is `GET /videos/:publicId/stream` and `GET /videos/:publicId/download`.
 - Video objects and generated thumbnails live in private MinIO-compatible storage. Multipart part URLs are short-lived opaque capabilities; public JSON, logs, and documentation must not expose storage keys, buckets, multipart session IDs, credentials, or permanent storage URLs.
-- Completing an upload writes a durable video outbox event. The API-side publisher sends it through Redis/BullMQ to the independently started `video-worker`, which uses FFmpeg/ffprobe, transitions video state through `DRAFT`, `PROCESSING`, `READY`, or `ERROR`, and persists only safe media metadata and a private thumbnail.
+- Completing an upload writes a durable video outbox event. The API-side publisher retries pending events at bootstrap and periodically, then sends them through Redis/BullMQ to the independently started `video-worker`. The worker uses FFmpeg/ffprobe, transitions video state through `DRAFT`, `PROCESSING`, `READY`, or `ERROR`, and persists only safe media metadata and a private thumbnail.
+- The declared and actual maximum upload size is 10 GB inclusive. If storage reports a larger completed object, the API compensates by deleting the private object and draft without creating an outbox event.
 - Compose service names are `db`, `mailpit`, `minio`, and `redis`; `video-worker` is a no-port background service. Containers use those service names rather than host loopback.
 
 ## Skill selection

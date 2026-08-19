@@ -17,14 +17,14 @@ libs:
     context7_id: "/aws/aws-sdk-js-v3"
     fetched_at: "2026-08-19T03:46:27.9650419Z"
 sources_mtime:
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-08-19T03:50:05.0286683Z"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-08-19T14:04:22.4148700Z"
 ---
 
 # Library References — Phase 03 Videos
 
 ## Compatibility basis
 
-The backend manifest uses NestJS `11.0.1` and the development container uses Node `25.6.0`. The npm registry reports that `@nestjs/bullmq@11.0.5` supports NestJS 11 and BullMQ 6, while both selected AWS SDK packages require Node 20 or later. Context7 was consulted for the selected versions and the API surfaces below.
+The backend manifest accepts NestJS `^11.0.1` and TypeORM `^0.3.28`; the audited lockfile resolves them to NestJS `11.2.1` and TypeORM `0.3.31`, and the development container uses Node `25.6.0`. The npm registry reports that `@nestjs/bullmq@11.0.5` supports NestJS 11 and BullMQ 6, while both selected AWS SDK packages require Node 20 or later. Context7 was consulted for the selected versions and the API surfaces below.
 
 ### @nestjs/bullmq
 
