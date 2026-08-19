@@ -8,11 +8,18 @@
 
 ## Project
 
-StreamTube is a video-sharing monorepo. Implemented areas are a NestJS 11 backend and a Next.js 16 frontend. Authentication is delivered; video processing, object storage, and queues remain planned work.
+StreamTube is a video-sharing monorepo. Implemented areas are a NestJS 11 backend and a Next.js 16 frontend. Authentication and the Phase 03 video lifecycle are delivered: private multipart uploads, asynchronous media processing, and private delivery.
 
--`nestjs-project/`: NestJS API, PostgreSQL, Mailpit, Jest, and TypeORM.
+-`nestjs-project/`: NestJS API, PostgreSQL, Mailpit, Jest, TypeORM, private MinIO-compatible object storage, Redis/BullMQ, and a separate FFmpeg/ffprobe video worker.
 -`next-frontend/`: Next.js App Router BFF, React 19, Tailwind CSS v4, Vitest, MSW, and Playwright.
 - `docs/`: project plan, decisions, phase/task plans, inventories, and diagrams.
+
+## Implemented video pipeline
+
+- `VideosModule` owns authenticated video HTTP APIs. The upload lifecycle is `POST /channels/:channelId/videos/uploads`, `POST /channels/:channelId/videos/:videoId/upload-parts`, `POST /channels/:channelId/videos/:videoId/complete-upload`, and `DELETE /channels/:channelId/videos/:videoId/upload`; private delivery is `GET /videos/:publicId/stream` and `GET /videos/:publicId/download`.
+- Video objects and generated thumbnails live in private MinIO-compatible storage. Multipart part URLs are short-lived opaque capabilities; public JSON, logs, and documentation must not expose storage keys, buckets, multipart session IDs, credentials, or permanent storage URLs.
+- Completing an upload writes a durable video outbox event. The API-side publisher sends it through Redis/BullMQ to the independently started `video-worker`, which uses FFmpeg/ffprobe, transitions video state through `DRAFT`, `PROCESSING`, `READY`, or `ERROR`, and persists only safe media metadata and a private thumbnail.
+- Compose service names are `db`, `mailpit`, `minio`, and `redis`; `video-worker` is a no-port background service. Containers use those service names rather than host loopback.
 
 ## Skill selection
 
@@ -49,4 +56,4 @@ When a workflow needs user input:
 - Keep changes within the requested feature or migration. Preserve unrelated dirty-worktree changes.
 - Prefer `rg` and `rg --files`, targeted reads, and `apply_patch`.
 - Run relevant tests during development and the documented subproject gates before completion when the environment supports them.
-- Do not implement Phase 03 HTTP APIs, entities, migrations, or product features as part of agent-foundation work.
+- Do not add unplanned HTTP APIs, entities, migrations, or product features as part of agent-foundation work.
